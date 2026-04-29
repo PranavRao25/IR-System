@@ -27,4 +27,4 @@
 |0.248     |0.36   |0.2716 |0.2564|0.198 |0.6935|
 
 
-![PERFORMANCE](output2/eval_plot.png)
+![PERFORMANCE](A1/output2/eval_plot.png)

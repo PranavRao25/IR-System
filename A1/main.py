@@ -6,10 +6,15 @@ from stopwordRemoval import StopwordRemoval
 import argparse
 import json
 import os
+import sys
 from sys import version_info
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from LSA import LSAInformationRetrieval
+from evaluation import Evaluation
 
-# Input compatibility for Python 2 and Python 3
+
+'''# Input compatibility for Python 2 and Python 3
 if version_info.major == 3:
     pass
 elif version_info.major == 2:
@@ -20,7 +25,7 @@ elif version_info.major == 2:
 else:
     print("Unknown python version - input function not safe")
 
-
+'''
 class SearchEngine:
 
 	def __init__(self, args):
@@ -132,13 +137,75 @@ class SearchEngine:
 			queries_json = json.load(f)
 
 		queries = [item["query"] for item in queries_json]
-		self.preprocessQueries(queries)
+		query_ids = [item["query number"] for item in queries_json]
+		processed_queries = self.preprocessQueries(queries)
 
 		with open(doc_path, 'r') as f:
 			docs_json = json.load(f)
 
 		docs = [item["body"] for item in docs_json]
-		self.preprocessDocs(docs)
+		doc_ids = [item["id"] for item in docs_json]
+		processed_docs = self.preprocessDocs(docs)
+
+		# Initialize and build the LSA Index
+		print("Building LSA Index...")
+		lsa = LSAInformationRetrieval()
+		lsa.buildIndex(processed_docs, doc_ids)
+
+		print("Ranking Queries...")
+		doc_IDs_ordered = lsa.rank(processed_queries)
+
+		# Evaluation
+		print("Evaluating System...")
+		qrels_path = os.path.join(self.args.dataset, "cran_qrels.json")
+		with open(qrels_path, 'r') as f:
+			qrels = json.load(f)
+
+		evaluator = Evaluation()
+		
+		precisions, recalls, fscores, MAPs, nDCGs, MRRs = [], [], [], [], [], []
+		for k in range(1, 11):
+			precisions.append(evaluator.meanPrecision(doc_IDs_ordered, query_ids, qrels, k))
+			recalls.append(evaluator.meanRecall(doc_IDs_ordered, query_ids, qrels, k))
+			fscores.append(evaluator.meanFscore(doc_IDs_ordered, query_ids, qrels, k))
+			MAPs.append(evaluator.meanAveragePrecision(doc_IDs_ordered, query_ids, qrels, k))
+			nDCGs.append(evaluator.meanNDCG(doc_IDs_ordered, query_ids, qrels, k))
+			MRRs.append(evaluator.meanReciprocalRank(doc_IDs_ordered, query_ids, qrels, k))
+
+		print("\nPerformance of different Models")
+		print("Vector Space Model (LSA)")
+		print("Precisions\tRecalls\tFscores\tMAPs\tnDCGs\tMRRs")
+		for i in range(10):
+			p = round(precisions[i], 4)
+			r = round(recalls[i], 4)
+			f = round(fscores[i], 4)
+			m = round(MAPs[i], 4)
+			n = round(nDCGs[i], 4)
+			mrr = round(MRRs[i], 4)
+			print(f"{p}\t{r}\t{f}\t{m}\t{n}\t{mrr}")
+
+		import matplotlib.pyplot as plt
+		
+		ks = range(1, 11)
+		plt.figure(figsize=(10, 6))
+		plt.plot(ks, precisions, label='Precisions', marker='o')
+		plt.plot(ks, recalls, label='Recalls', marker='o')
+		plt.plot(ks, fscores, label='Fscores', marker='o')
+		plt.plot(ks, MAPs, label='MAPs', marker='o')
+		plt.plot(ks, nDCGs, label='nDCGs', marker='o')
+		plt.plot(ks, MRRs, label='MRRs', marker='o')
+		
+		plt.title("Performance metrics for Vector Space Model using LSA (k=1 to 10)")
+		plt.xlabel("k")
+		plt.ylabel("Score")
+		plt.xticks(ks)
+		plt.legend()
+		plt.grid(True)
+		
+		plot_path = os.path.join(self.args.out_folder, "eval_plot.png")
+		plt.savefig(plot_path)
+		plt.close()
+		print(f"\nPlot saved to {plot_path}")
 
 
 	def handleCustomQuery(self):
@@ -164,7 +231,7 @@ if __name__ == "__main__":
 	parser.add_argument('-dataset', default="cranfield",
 						help="Path to dataset folder")
 
-	parser.add_argument('-out_folder', default="output",
+	parser.add_argument('-out_folder', default="output2",
 						help="Path to output folder")
 
 	parser.add_argument('-segmenter', default="punkt",

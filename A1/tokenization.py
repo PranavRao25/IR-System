@@ -1,4 +1,4 @@
-from A1.util import *
+from util import *
 
 # Add your import statements here
 # (Students may import required libraries such as nltk, spacy, re, etc.)

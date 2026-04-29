@@ -99,6 +99,3 @@ class InformationRetrieval():
 			doc_IDs_ordered.append(sorted_docs)
 		return doc_IDs_ordered
 
-
-
-

@@ -11,6 +11,7 @@ from sys import version_info
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from LSA import LSAInformationRetrieval
+from esa import ESAInformationRetrieval
 from evaluation import Evaluation
 
 
@@ -147,13 +148,17 @@ class SearchEngine:
 		doc_ids = [item["id"] for item in docs_json]
 		processed_docs = self.preprocessDocs(docs)
 
-		# Initialize and build the LSA Index
-		print("Building LSA Index...")
-		lsa = LSAInformationRetrieval()
-		lsa.buildIndex(processed_docs, doc_ids)
+		# Initialize and build the chosen index
+		if self.args.model == "esa":
+			print("Building ESA Index...")
+			ir_model = ESAInformationRetrieval()
+		else:
+			print("Building LSA Index...")
+			ir_model = LSAInformationRetrieval()
+		ir_model.buildIndex(processed_docs, doc_ids)
 
 		print("Ranking Queries...")
-		doc_IDs_ordered = lsa.rank(processed_queries)
+		doc_IDs_ordered = ir_model.rank(processed_queries)
 
 		# Evaluation
 		print("Evaluating System...")
@@ -173,7 +178,7 @@ class SearchEngine:
 			MRRs.append(evaluator.meanReciprocalRank(doc_IDs_ordered, query_ids, qrels, k))
 
 		print("\nPerformance of different Models")
-		print("Vector Space Model (LSA)")
+		print(f"Vector Space Model ({self.args.model.upper()})")
 		print("Precisions\tRecalls\tFscores\tMAPs\tnDCGs\tMRRs")
 		for i in range(10):
 			p = round(precisions[i], 4)
@@ -195,7 +200,7 @@ class SearchEngine:
 		plt.plot(ks, nDCGs, label='nDCGs', marker='o')
 		plt.plot(ks, MRRs, label='MRRs', marker='o')
 		
-		plt.title("Performance metrics for Vector Space Model using LSA (k=1 to 10)")
+		plt.title(f"Performance metrics for Vector Space Model using {self.args.model.upper()} (k=1 to 10)")
 		plt.xlabel("k")
 		plt.ylabel("Score")
 		plt.xticks(ks)
@@ -231,8 +236,11 @@ if __name__ == "__main__":
 	parser.add_argument('-dataset', default="cranfield",
 						help="Path to dataset folder")
 
-	parser.add_argument('-out_folder', default="output2",
+	parser.add_argument('-out_folder', default=None,
 						help="Path to output folder")
+
+	parser.add_argument('-model', default="lsa", choices=["lsa", "esa"],
+						help="Retrieval model to evaluate [lsa|esa]")
 
 	parser.add_argument('-segmenter', default="punkt",
 	                    help="Sentence Segmenter Type [naive|punkt]")
@@ -244,6 +252,9 @@ if __name__ == "__main__":
 						help="Take custom query as input")
 
 	args = parser.parse_args()
+
+	if args.out_folder is None:
+		args.out_folder = "esa_output" if args.model == "esa" else "output2"
 
 	searchEngine = SearchEngine(args)
 

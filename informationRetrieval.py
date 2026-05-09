@@ -1,10 +1,4 @@
 from A1.util import *
-
-# Add your import statements here
-
-
-
-
 class InformationRetrieval():
 
 	def __init__(self):

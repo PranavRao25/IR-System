@@ -1,9 +1,7 @@
 from A1.util import *
 from collections import Counter
 import math
-
 import numpy as np
-
 
 class ESAInformationRetrieval():
 

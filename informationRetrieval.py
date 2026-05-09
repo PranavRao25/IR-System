@@ -1,5 +1,6 @@
 from A1.util import *
-class InformationRetrieval():
+
+class TFIDF():
 
 	def __init__(self):
 		self.index = None

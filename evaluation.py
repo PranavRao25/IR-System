@@ -1,0 +1,244 @@
+from A1.util import *
+import numpy as np
+import pandas as pd
+
+class Evaluation():
+	"""
+		Performs Evaluation on the retrieved documents
+	"""
+
+	def queryPrecision(self, query_doc_IDs_ordered: list, query_id: int, true_doc_IDs: list, k: int):
+		"""
+		Computation of precision of the Information Retrieval System
+		at a given value of k for a single query
+		"""
+
+		precision = -1
+		total_k = query_doc_IDs_ordered[:k]
+		no_relevant = len(set(true_doc_IDs).intersection(set(total_k)))
+
+		precision = no_relevant / k
+
+		return precision
+
+	def meanPrecision(self, doc_IDs_ordered: list, query_ids: list, qrels: list, k: int):
+		"""
+		Computation of precision of the Information Retrieval System
+		at a given value of k, averaged over all the queries
+		"""
+
+		def map_query(query_id):
+			query_doc_IDs_ordered = doc_IDs_ordered[int(query_id)-1]  # get the predicted order
+			true_doc_IDs = list(true_docs_map.get(query_id, set()))  # get the true order
+			return self.queryPrecision(query_doc_IDs_ordered, int(query_id), true_doc_IDs, k)
+
+		mean_Precision = -1
+		df = pd.DataFrame(qrels)  # qrels has true relevant lists
+		df["query_num"] = df["query_num"].astype(int)
+		df["id"] = df["id"].astype(int)
+		true_docs_map = df.groupby("query_num")["id"].apply(set).to_dict()
+		mean_Precision = float(np.average(np.fromiter(map(map_query, query_ids), dtype=float)))
+
+		return mean_Precision
+	
+	def queryRecall(self, query_doc_IDs_ordered, query_id, true_doc_IDs, k):
+		"""
+		Computation of recall of the Information Retrieval System
+		at a given value of k for a single query
+		"""
+
+		recall = -1
+
+		if len(true_doc_IDs) == 0:
+			print(f"{query_id} has 0 true_doc_IDs")
+		
+		total_k = query_doc_IDs_ordered[:k]
+		no_relevant = len(set(total_k).intersection(set(true_doc_IDs)))
+		recall = 0 if no_relevant == 0 else no_relevant / len(true_doc_IDs)
+
+		return recall
+
+	def meanRecall(self, doc_IDs_ordered, query_ids, qrels, k):
+		"""
+		Computation of recall of the Information Retrieval System
+		at a given value of k, averaged over all the queries
+		"""
+
+		def map_query(query_id):
+			query_doc_IDs_ordered = doc_IDs_ordered[int(query_id)-1]
+			true_doc_IDs = list(true_docs_map.get(query_id, set()))
+			return self.queryRecall(query_doc_IDs_ordered, int(query_id), true_doc_IDs, k)
+
+		mean_Recall = -1
+		df = pd.DataFrame(qrels)  # qrels has true relevant lists
+		df["query_num"] = df["query_num"].astype(int)
+		df["id"] = df["id"].astype(int)
+		true_docs_map = df.groupby("query_num")["id"].apply(set).to_dict()
+		mean_Recall = float(np.average(np.fromiter(map(map_query, query_ids), dtype=float)))
+
+		return mean_Recall
+
+	def queryFscore(self, query_doc_IDs_ordered, query_id, true_doc_IDs, k):
+		"""
+		Computation of fscore of the Information Retrieval System
+		at a given value of k for a single query
+		"""
+		fscore = -1
+
+		precision = self.queryPrecision(query_doc_IDs_ordered, query_id, true_doc_IDs, k)
+		recall = self.queryRecall(query_doc_IDs_ordered, query_id, true_doc_IDs, k)
+
+		if (precision + recall) == 0:
+			return 0
+		
+		fscore = 2 * precision * recall / (precision + recall)
+		return fscore
+
+	def meanFscore(self, doc_IDs_ordered, query_ids, qrels, k):
+		"""
+		Computation of fscore of the Information Retrieval System
+		at a given value of k, averaged over all the queries
+		"""
+
+		def map_query(query_id):
+			query_doc_IDs_ordered = doc_IDs_ordered[int(query_id)-1]
+			true_doc_IDs = list(true_docs_map.get(query_id, set()))
+			return self.queryFscore(query_doc_IDs_ordered, int(query_id), true_doc_IDs, k)
+
+		mean_Fscore = -1
+		df = pd.DataFrame(qrels)  # qrels has true relevant lists
+		df["query_num"] = df["query_num"].astype(int)
+		df["id"] = df["id"].astype(int)
+		true_docs_map = df.groupby("query_num")["id"].apply(set).to_dict()
+		mean_Fscore = float(np.average(np.fromiter(map(map_query, query_ids), dtype=float)))
+
+		return mean_Fscore
+	
+	def queryNDCG(self, query_doc_IDs_ordered, query_id, true_doc_IDs: list, k):
+		"""
+		Computation of nDCG of the Information Retrieval System
+		at given value of k for a single query
+		"""
+		nDCG = -1
+
+		docs_k = query_doc_IDs_ordered[:k]
+		present = set(true_doc_IDs).intersection(set(docs_k))
+
+		if len(present) == 0:
+			# print(f"Present {query_id}: {set(docs_k)} {set(true_doc_IDs)}")
+			pass
+
+		DCG = np.sum([(2**(int(docs_k[i] in present)) - 1)/np.log(i+1) for i in range(1, len(docs_k))])
+		IDCG = len(present) * np.sum([1/np.log(i+1) for i in range(1, len(present)+1)])
+
+		if IDCG == 0:
+			# print(f"{query_id} has 0 IDCG at {k}")
+			return 0
+		
+		nDCG = DCG/IDCG
+		return nDCG
+
+	def meanNDCG(self, doc_IDs_ordered, query_ids, qrels, k):
+		"""
+		Computation of nDCG of the Information Retrieval System
+		at a given value of k, averaged over all the queries
+		"""
+
+		def map_query(query_id):
+			query_doc_IDs_ordered = doc_IDs_ordered[int(query_id)-1]
+			true_doc_IDs = list(true_docs_map.get(query_id, set()))
+			return self.queryNDCG(query_doc_IDs_ordered, int(query_id), true_doc_IDs, k)
+
+		mean_NDCG = -1
+		df = pd.DataFrame(qrels)  # qrels has true relevant lists
+		df["query_num"] = df["query_num"].astype(int)
+		df["id"] = df["id"].astype(int)
+		true_docs_map = df.groupby("query_num")["id"].apply(set).to_dict()
+		mean_NDCG = float(np.average(np.fromiter(map(map_query, query_ids), dtype=float)))
+
+		return mean_NDCG
+
+	def queryAveragePrecision(self, query_doc_IDs_ordered, query_id, true_doc_IDs, k):
+		"""
+		Computation of average precision of the Information Retrieval System
+		at a given value of k for a single query
+		"""
+		avgPrecision = -1
+
+		true_docs = set(true_doc_IDs)
+
+		avgPrecision = 0
+		for i in range(1, k):
+			precision_i = self.queryPrecision(query_doc_IDs_ordered, query_id, true_doc_IDs, i)
+			i = min(i-1, len(query_doc_IDs_ordered) - 1)
+			rel_i = int(query_doc_IDs_ordered[i] in true_docs)
+			avgPrecision += (rel_i * precision_i)
+		avgPrecision = 0 if len(true_doc_IDs) == 0 else avgPrecision/len(true_doc_IDs)
+
+		return avgPrecision
+
+	def meanAveragePrecision(self, doc_IDs_ordered, query_ids, qrels, k):
+		"""
+		Computation of MAP of the Information Retrieval System
+		at given value of k, averaged over all the queries
+		"""
+
+		def map_query(query_id):
+			query_doc_IDs_ordered = doc_IDs_ordered[int(query_id)-1]
+			true_doc_IDs = list(true_docs_map.get(query_id, set()))
+			return self.queryAveragePrecision(query_doc_IDs_ordered, int(query_id), true_doc_IDs, k)
+
+		mean_AP = -1
+		
+		df = pd.DataFrame(qrels)  # qrels has true relevant lists
+		df["query_num"] = df["query_num"].astype(int)
+		df["id"] = df["id"].astype(int)
+		true_docs_map = df.groupby("query_num")["id"].apply(set).to_dict()
+		mean_AP = float(np.average(np.fromiter(map(map_query, query_ids), dtype=float)))
+
+		return mean_AP
+
+	def queryReciprocalRank(self, query_doc_IDs_ordered, query_id, true_doc_IDs, k):
+		"""
+		Computation of reciprocal rank for a single query
+		"""
+
+		reciprocalRank = -1
+
+		if k > len(query_doc_IDs_ordered):
+			print(f"k : {k} is bigger than query_docs : {len(query_doc_IDs_ordered)}")
+		
+		k = min(k, len(query_doc_IDs_ordered))
+
+		true_doc_IDs_set = set(true_doc_IDs)
+		min_index = next((i for i in range(k) if query_doc_IDs_ordered[i] in true_doc_IDs_set), k)
+
+		if min_index == k:
+			# print(f"{query_id} has 0 present at {k}")
+			# print(query_doc_IDs_ordered[:k], true_doc_IDs)
+			# print(set(query_doc_IDs_ordered[:k]).intersection(true_doc_IDs_set))
+			reciprocalRank = 0
+		else:
+			reciprocalRank = 1/(min_index + 1)  # Fixed to use rank (index + 1)
+
+		return reciprocalRank
+
+	def meanReciprocalRank(self, doc_IDs_ordered, query_ids, qrels, k):
+		"""
+		Computation of Mean Reciprocal Rank (MRR)
+		averaged over all queries
+		"""
+
+		def map_query(query_id):
+			query_doc_IDs_ordered = doc_IDs_ordered[int(query_id)-1]
+			true_doc_IDs = list(true_docs_map.get(query_id, set()))
+			return self.queryReciprocalRank(query_doc_IDs_ordered, int(query_id), true_doc_IDs, k)
+
+		mRR = -1
+		df = pd.DataFrame(qrels)  # qrels has true relevant lists
+		df["query_num"] = df["query_num"].astype(int)
+		df["id"] = df["id"].astype(int)
+		true_docs_map = df.groupby("query_num")["id"].apply(set).to_dict()
+		mRR = float(np.average(np.fromiter(map(map_query, query_ids), dtype=float)))
+
+		return mRR

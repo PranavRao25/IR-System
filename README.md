@@ -76,3 +76,5 @@ This repository contains the course project for `CS6370 - Natural Language Proce
 ![ESA PERFORMANCE](outputs/eval_plot_esa.png)
 
 ![LSA PERFORMANCE](outputs/eval_plot_lsa.png)
+
+![Final Comaprision](performance_comparison.png)

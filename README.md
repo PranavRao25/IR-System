@@ -71,10 +71,19 @@ This repository contains the course project for `CS6370 - Natural Language Proce
 
 
 ### Plots
+
+### 1 TF-IDF Performance
+
 ![TF-IDF PERFORMANCE](outputs/eval_plot_tfidf.png)
+
+### 2 ESA Performance
 
 ![ESA PERFORMANCE](outputs/eval_plot_esa.png)
 
+### 3 LSA Performance
+
 ![LSA PERFORMANCE](outputs/eval_plot_lsa.png)
+
+### 4 Final Comparision
 
 ![Final Comaprision](performance_comparison.png)
